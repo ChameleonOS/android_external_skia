@@ -11,6 +11,10 @@
 #include "SkTypes.h"
 #include "SkUtils.h"
 
+#if defined(__ARM_HAVE_NEON)
+#include <arm_neon.h>
+#endif
+
 #if SK_ARM_ARCH >= 6 && !defined(SK_CPU_BENDIAN)
 void SI8_D16_nofilter_DX_arm(
     const SkBitmapProcState& s,
