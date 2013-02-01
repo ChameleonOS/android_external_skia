@@ -27,6 +27,7 @@
 #include "FontHostConfiguration_android.h"
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 #include "SkGlyphCache.h"
 #include "SkLanguage.h"
 #include "SkTypeface_android.h"
@@ -50,20 +51,42 @@ static void getFullPathForSysFonts(SkString* full, const char name[]) {
     full->append(name);
 }
 
+static void getFullPathForDataFonts(SkString* full, const char name[]) {
+    full->set(getenv("ANDROID_DATA"));
+    full->append(SK_FONT_FILE_PREFIX);
+    full->append(name);
+}
+
 static bool getNameAndStyle(const char path[], SkString* name,
                                SkTypeface::Style* style,
                                bool* isFixedWidth, bool isExpected) {
     SkString        fullpath;
-    getFullPathForSysFonts(&fullpath, path);
 
-    SkMMAPStream stream(fullpath.c_str());
-    if (stream.getLength() > 0) {
-        return find_name_and_attributes(&stream, name, style, isFixedWidth);
-    }
-    else {
-        SkFILEStream stream(fullpath.c_str());
+    getFullPathForDataFonts(&fullpath, path);
+
+    // check if font exists in /data/fonts first
+    if (access(fullpath.c_str(), R_OK) != -1) {
+        SkMMAPStream datastream(fullpath.c_str());
+        if (datastream.getLength() > 0) {
+            return find_name_and_attributes(&datastream, name, style, isFixedWidth);
+        }
+        else {
+            SkFILEStream datastream(fullpath.c_str());
+            if (datastream.getLength() > 0) {
+                return find_name_and_attributes(&datastream, name, style, isFixedWidth);
+            }
+        }
+    } else {
+        getFullPathForSysFonts(&fullpath, path);
+        SkMMAPStream stream(fullpath.c_str());
         if (stream.getLength() > 0) {
             return find_name_and_attributes(&stream, name, style, isFixedWidth);
+        }
+        else {
+            SkFILEStream stream(fullpath.c_str());
+            if (stream.getLength() > 0) {
+                return find_name_and_attributes(&stream, name, style, isFixedWidth);
+            }
         }
     }
 
@@ -768,12 +791,22 @@ static void initSystemFontsLocked() {
         }
 
         SkString fullpath;
+        SkString datapath;
         getFullPathForSysFonts(&fullpath, gSystemFonts[i].fFileName);
+        getFullPathForDataFonts(&datapath, gSystemFonts[i].fFileName);
 
-        SkTypeface* tf = SkNEW_ARGS(FileTypeface, (style,
-                true,  // system-font (cannot delete)
-                fullpath.c_str(), // filename
-                isFixedWidth));
+        SkTypeface* tf;
+        if ( access(datapath.c_str(), R_OK) == -1 ) {
+            tf = SkNEW_ARGS(FileTypeface, (style,
+                    true,  // system-font (cannot delete)
+                    fullpath.c_str(), // filename
+                    isFixedWidth));
+        } else {
+            tf = SkNEW_ARGS(FileTypeface, (style,
+                    true,  // system-font (cannot delete)
+                    datapath.c_str(), // filename
+                    isFixedWidth));
+        }
         addTypefaceLocked(tf, firstInFamily);
 
         SkDEBUGF(("---- SkTypeface[%d] %s fontID %d\n",
