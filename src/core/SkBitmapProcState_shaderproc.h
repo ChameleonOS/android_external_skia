@@ -70,7 +70,6 @@ void SCALE_FILTER_NAME(const SkBitmapProcState& s, int x, int y,
 
         fx += dx;
     } while (--count != 0);
-#endif //S32_OPAQUE_D32_FILTER_DX_NEON
 
 #ifdef POSTAMBLE
     POSTAMBLE(s);

@@ -1,3 +1,4 @@
+
 /*
  * Copyright 2011 Google Inc.
  *
@@ -71,25 +72,6 @@ static bool just_trans_general(const SkMatrix& matrix) {
     // if we got here, treat us as either kTranslate_Mask or identity
     return true;
 }
-
-#if     defined(__ARM_HAVE_NEON)
-#define TILEX_PROCF(fx, max)    SkClampMax((fx) >> 16, max)
-#define TILEY_PROCF(fy, max)    SkClampMax((fy) >> 16, max)
-#define TILEX_LOW_BITS(fx, max) (((fx) >> 12) & 0xF)
-#define TILEY_LOW_BITS(fy, max) (((fy) >> 12) & 0xF)
-
-#undef FILTER_PROC
-#define FILTER_PROC(x, y, a, b, c, d, dst)   Filter_32_opaque(x, y, a, b, c, d, dst)
-#define MAKENAME(suffix)        S32_Opaque_D32 ## suffix
-#define SRCTYPE                 uint32_t
-#define DSTTYPE                 uint32_t
-#define SRC_TO_FILTER(src)      src
-#include "S32_Opaque_D32_filter_DX_shaderproc_neon.cpp"
-#define S32_OPAQUE_D32_FILTER_DX_NEON
-#include "SkBitmapProcState_shaderproc.h"
-#undef S32_OPAQUE_D32_FILTER_DX_NEON
-#endif //ARM_HAVE_NEON
-
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -324,11 +306,6 @@ bool SkBitmapProcState::chooseProcs(const SkMatrix& inv, const SkPaint& paint) {
     if (NULL == fShaderProc32) {
         fShaderProc32 = this->chooseShaderProc32();
     }
-#if     defined(__ARM_HAVE_NEON)
-      else if (S32_opaque_D32_filter_DX == fSampleProc32 && clamp_clamp) {
-        fShaderProc32 = S32_Opaque_D32_filter_DX_shaderproc;
-    }
-#endif //ARM_HAVE_NEON
 
     // see if our platform has any accelerated overrides
     this->platformProcs();
