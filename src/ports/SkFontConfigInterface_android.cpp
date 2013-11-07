@@ -24,6 +24,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 #ifndef SK_DEBUG_FONTS
     #define SK_DEBUG_FONTS 0
@@ -183,6 +184,12 @@ static void get_path_for_sys_fonts(SkString* full, const char name[]) {
     full->append(name);
 }
 
+static void get_path_for_data_fonts(SkString* full, const char name[]) {
+    full->set(getenv("ANDROID_DATA"));
+    full->append(SK_FONT_FILE_PREFIX);
+    full->append(name);
+}
+
 static void insert_into_name_dict(SkTDict<FamilyRecID>& familyNameDict,
                                   const char* name, FamilyRecID familyRecID) {
     SkAutoAsciiToLC tolc(name);
@@ -219,7 +226,12 @@ SkFontConfigInterfaceAndroid::SkFontConfigInterfaceAndroid(SkTDArray<FontFamily*
 
         for (int j = 0; j < family->fFontFiles.count(); ++j) {
             SkString filename;
-            get_path_for_sys_fonts(&filename, family->fFontFiles[j]->fFileName);
+
+            // check if the font exists in /data/fonts first and fallback to system if not
+            get_path_for_data_fonts(&filename, family->fFontFiles[j]->fFileName);
+            if (access(filename.c_str(), F_OK) == -1) {
+                get_path_for_sys_fonts(&filename, family->fFontFiles[j]->fFileName);
+            }
 
             if (has_font(fFonts, filename)) {
                 SkDebugf("---- system font and fallback font files specify a duplicate "
